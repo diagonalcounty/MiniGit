@@ -330,4 +330,15 @@
  */
 - (BOOL)checkoutPaths:(nonnull NSArray<NSString *> *)paths atRef:(nonnull NSString *)refName NS_SWIFT_NAME(checkoutPaths(_:atRef:));
 
+/**
+ * Point a direct ref at an oid already in the object database, without
+ * writing the index or the worktree. Updates the ref if it already exists,
+ * otherwise creates it (without forcing). Returns NO when the oid is not
+ * already in the object database.
+ *
+ * @param refName Full name of the reference to update or create
+ * @param oidHex Lowercase hex id of an object already in the object database
+ */
+- (BOOL)updateDirectRef:(nonnull NSString *)refName toOID:(nonnull NSString *)oidHex NS_SWIFT_NAME(updateDirectRef(_:toOID:));
+
 @end

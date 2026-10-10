@@ -130,4 +130,43 @@ final class MiniGitTests: XCTestCase {
         XCTAssertFalse(repo.checkoutPaths(["a.md"], atRef: "refs/heads/no-such-branch"))
         XCTAssertEqual(readFile("b.md", in: repo), "edited\n")
     }
+
+    // MARK: - #737 updateDirectRef(_:toOID:)
+
+    func testUpdateDirectRefMovesRefWithoutTouchingWorktree() {
+        let repo = makeTempRepo()
+        repo.create()
+        repo.setSignature("Test", "test@example.com")
+
+        write("v1\n", to: "a.md", in: repo)
+        repo.stage("a.md")
+        repo.commit("first")
+
+        repo.updateStatus()
+        let refName = "refs/heads/\(repo.status.currentBranch)"
+        let firstCommitId = tipCommit(of: repo)?.oid.description
+        XCTAssertNotNil(firstCommitId)
+
+        write("v2\n", to: "a.md", in: repo)
+        repo.stage("a.md")
+        repo.commit("second")
+        let secondCommitId = tipCommit(of: repo)?.oid.description
+        XCTAssertNotNil(secondCommitId)
+        XCTAssertNotEqual(firstCommitId, secondCommitId)
+
+        XCTAssertTrue(repo.updateDirectRef(refName, toOID: firstCommitId!))
+        XCTAssertEqual(readFile("a.md", in: repo), "v2\n")
+
+        repo.updateCommitGraph()
+        XCTAssertEqual(
+            repo.commitGraph.commits.first { $0.refs.contains { $0.name == refName } }?.oid.description,
+            firstCommitId)
+
+        XCTAssertFalse(repo.updateDirectRef(refName, toOID: "0000000000000000000000000000000000000000"))
+        repo.updateCommitGraph()
+        XCTAssertEqual(
+            repo.commitGraph.commits.first { $0.refs.contains { $0.name == refName } }?.oid.description,
+            firstCommitId)
+        XCTAssertEqual(readFile("a.md", in: repo), "v2\n")
+    }
 }

@@ -484,4 +484,40 @@ static int collectBlobId(const char *root, const git_tree_entry *entry, void *pa
     return success;
 }
 
+- (BOOL)updateDirectRef:(nonnull NSString *)refName toOID:(nonnull NSString *)oidHex
+{
+    git_oid oid;
+    if (git_oid_fromstr(&oid, [oidHex UTF8String]) != 0)
+        return NO;
+
+    git_odb *odb = NULL;
+    if (git_repository_odb(&odb, repo) != 0)
+        return NO;
+
+    int exists = git_odb_exists(odb, &oid);
+    git_odb_free(odb);
+
+    if (!exists)
+        return NO;
+
+    git_reference *existing = NULL;
+    git_reference_lookup(&existing, repo, [refName UTF8String]);
+
+    int result;
+    if (existing != NULL) {
+        git_reference *updated = NULL;
+        result = git_reference_set_target(&updated, existing, &oid, NULL);
+        if (updated != NULL)
+            git_reference_free(updated);
+        git_reference_free(existing);
+    } else {
+        git_reference *created = NULL;
+        result = git_reference_create(&created, repo, [refName UTF8String], &oid, 0, NULL);
+        if (created != NULL)
+            git_reference_free(created);
+    }
+
+    return result == 0;
+}
+
 @end

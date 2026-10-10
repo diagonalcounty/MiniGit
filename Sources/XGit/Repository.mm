@@ -423,4 +423,31 @@ static int collectBlobId(const char *root, const git_tree_entry *entry, void *pa
     return result;
 }
 
+- (BOOL)setIndexBlob:(nonnull NSString *)path oid:(nonnull NSString *)oidHex
+{
+    git_oid oid;
+    if (git_oid_fromstr(&oid, [oidHex UTF8String]) != 0)
+        return NO;
+
+    git_blob *blob = NULL;
+    if (git_blob_lookup(&blob, repo, &oid) != 0)
+        return NO;
+    git_blob_free(blob);
+
+    git_index *index = NULL;
+    if (git_repository_index(&index, repo) != 0)
+        return NO;
+
+    git_index_entry entry = {};
+    entry.path = [path UTF8String];
+    entry.mode = GIT_FILEMODE_BLOB;
+    entry.id = oid;
+
+    BOOL success = (git_index_add(index, &entry) == 0) && (git_index_write(index) == 0);
+
+    git_index_free(index);
+
+    return success;
+}
+
 @end

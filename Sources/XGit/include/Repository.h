@@ -311,4 +311,13 @@
  */
 - (nonnull NSDictionary<NSString *, NSString *> *)treeBlobIdsAtRef:(nonnull NSString *)refName NS_SWIFT_NAME(treeBlobIds(atRef:));
 
+/**
+ * Write a blob id into the index for one path without hashing the worktree
+ * file and without writing that file.
+ *
+ * @param path Repo-relative path to set in the index
+ * @param oidHex Lowercase hex id of a blob already in the object database
+ */
+- (BOOL)setIndexBlob:(nonnull NSString *)path oid:(nonnull NSString *)oidHex NS_SWIFT_NAME(setIndexBlob(_:oid:));
+
 @end

@@ -46,7 +46,7 @@ let package = Package(
             checksum: "332bfb255649f2295d5530e4abed4e81803acdc6abf18a266695fdb447ca3df2"),
         .testTarget(
             name: "MiniGitTests",
-            dependencies: ["MiniGit"]),
+            dependencies: ["MiniGit", "XGit"]),
     ],
     cxxLanguageStandard: .cxx14
 )

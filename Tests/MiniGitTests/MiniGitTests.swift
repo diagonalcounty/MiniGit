@@ -1,4 +1,5 @@
 import XCTest
+import XGit
 @testable import MiniGit
 
 final class MiniGitTests: XCTestCase {
@@ -65,5 +66,37 @@ final class MiniGitTests: XCTestCase {
         XCTAssertEqual(readFile("a.md", in: repo), "changed\n")
 
         XCTAssertEqual(repo.treeBlobIds(atRef: "refs/heads/no-such-branch"), [:])
+    }
+
+    // MARK: - #735 setIndexBlob(_:oid:)
+
+    private func paths(in diff: Diff) -> [String] {
+        diff.deltas.compactMap { $0.theNewFile.path ?? $0.theOldFile.path }
+    }
+
+    func testSetIndexBlobWritesIndexWithoutHashingWorktree() {
+        let repo = makeTempRepo()
+        repo.create()
+        repo.setSignature("Test", "test@example.com")
+
+        write("hello\n", to: "a.md", in: repo)
+        repo.stage("a.md")
+        repo.commit("initial")
+
+        write("other\n", to: "a.md", in: repo)
+
+        XCTAssertTrue(repo.setIndexBlob("a.md", oid: "ce013625030ba8dba906f756967f9e9ca394464a"))
+        XCTAssertEqual(readFile("a.md", in: repo), "other\n")
+
+        repo.updateStatus()
+        XCTAssertTrue(paths(in: repo.status.unstagedChanges).contains("a.md"))
+        XCTAssertFalse(paths(in: repo.status.stagedChanges).contains("a.md"))
+
+        XCTAssertFalse(repo.setIndexBlob("a.md", oid: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+        XCTAssertEqual(readFile("a.md", in: repo), "other\n")
+
+        repo.updateStatus()
+        XCTAssertTrue(paths(in: repo.status.unstagedChanges).contains("a.md"))
+        XCTAssertFalse(paths(in: repo.status.stagedChanges).contains("a.md"))
     }
 }

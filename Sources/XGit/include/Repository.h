@@ -341,4 +341,14 @@
  */
 - (BOOL)updateDirectRef:(nonnull NSString *)refName toOID:(nonnull NSString *)oidHex NS_SWIFT_NAME(updateDirectRef(_:toOID:));
 
+/**
+ * Return the UTF-8 text of a blob already in the local object database.
+ * Returns nil for invalid hex, a missing object, an object that is not a
+ * blob, or bytes that are not valid UTF-8. Never fetches, and never writes
+ * the worktree or the index.
+ *
+ * @param oidHex Lowercase hex id of the blob to read
+ */
+- (NSString * _Nullable)blobUTF8Text:(nonnull NSString *)oidHex NS_SWIFT_NAME(blobUTF8Text(_:));
+
 @end

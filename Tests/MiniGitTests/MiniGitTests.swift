@@ -169,4 +169,30 @@ final class MiniGitTests: XCTestCase {
             firstCommitId)
         XCTAssertEqual(readFile("a.md", in: repo), "v2\n")
     }
+
+    // MARK: - #738 blobUTF8Text(_:)
+
+    func testBlobUTF8TextReadsCommittedBlobWithoutTouchingWorktree() {
+        let repo = makeTempRepo()
+        repo.create()
+        repo.setSignature("Test", "test@example.com")
+
+        write("hello\n", to: "a.md", in: repo)
+        repo.stage("a.md")
+        repo.commit("initial")
+
+        write("other\n", to: "a.md", in: repo)
+
+        XCTAssertEqual(repo.blobUTF8Text("ce013625030ba8dba906f756967f9e9ca394464a"), "hello\n")
+        XCTAssertEqual(readFile("a.md", in: repo), "other\n")
+
+        XCTAssertNil(repo.blobUTF8Text("0000000000000000000000000000000000000000"))
+
+        writeBinary([0xff, 0xfe], to: "bin.dat", in: repo)
+        repo.stage("bin.dat")
+        repo.commit("binary")
+
+        XCTAssertNil(repo.blobUTF8Text("46b134b197f35e75e0784bedbf94a8dd124693b1"))
+        XCTAssertEqual(try? Data(contentsOf: repo.location.appendingPathComponent("bin.dat")), Data([0xff, 0xfe]))
+    }
 }

@@ -99,4 +99,35 @@ final class MiniGitTests: XCTestCase {
         XCTAssertTrue(paths(in: repo.status.unstagedChanges).contains("a.md"))
         XCTAssertFalse(paths(in: repo.status.stagedChanges).contains("a.md"))
     }
+
+    // MARK: - #736 checkoutPaths(_:atRef:)
+
+    func testCheckoutPathsRestoresOnlyNamedPaths() {
+        let repo = makeTempRepo()
+        repo.create()
+        repo.setSignature("Test", "test@example.com")
+
+        write("hello\n", to: "a.md", in: repo)
+        write("world\n", to: "b.md", in: repo)
+        repo.stage("a.md")
+        repo.stage("b.md")
+        repo.commit("initial")
+
+        let tipBefore = tipCommit(of: repo)?.oid.description
+
+        try! FileManager.default.removeItem(at: repo.location.appendingPathComponent("a.md"))
+        write("edited\n", to: "b.md", in: repo)
+
+        XCTAssertTrue(repo.checkoutPaths(["a.md"], atRef: "HEAD"))
+        XCTAssertEqual(readFile("a.md", in: repo), "hello\n")
+        XCTAssertEqual(readFile("b.md", in: repo), "edited\n")
+
+        XCTAssertEqual(tipCommit(of: repo)?.oid.description, tipBefore)
+
+        XCTAssertTrue(repo.checkoutPaths([], atRef: "HEAD"))
+        XCTAssertEqual(readFile("b.md", in: repo), "edited\n")
+
+        XCTAssertFalse(repo.checkoutPaths(["a.md"], atRef: "refs/heads/no-such-branch"))
+        XCTAssertEqual(readFile("b.md", in: repo), "edited\n")
+    }
 }

@@ -450,4 +450,38 @@ static int collectBlobId(const char *root, const git_tree_entry *entry, void *pa
     return success;
 }
 
+- (BOOL)checkoutPaths:(nonnull NSArray<NSString *> *)paths atRef:(nonnull NSString *)refName
+{
+    if (paths.count == 0)
+        return YES;
+
+    git_object *obj = NULL;
+    if (git_revparse_single(&obj, repo, [refName UTF8String]) != 0)
+        return NO;
+
+    git_commit *commit = NULL;
+    if (git_object_peel((git_object**)&commit, obj, GIT_OBJECT_COMMIT) != 0) {
+        git_object_free(obj);
+        return NO;
+    }
+    git_object_free(obj);
+
+    std::vector<const char*> cpaths;
+    cpaths.reserve(paths.count);
+    for (NSString *p in paths) {
+        cpaths.push_back([p UTF8String]);
+    }
+
+    git_checkout_options checkout_opts = GIT_CHECKOUT_OPTIONS_INIT;
+    checkout_opts.checkout_strategy = GIT_CHECKOUT_SAFE | GIT_CHECKOUT_DISABLE_PATHSPEC_MATCH | GIT_CHECKOUT_RECREATE_MISSING;
+    checkout_opts.paths.strings = (char**)cpaths.data();
+    checkout_opts.paths.count = cpaths.size();
+
+    BOOL success = git_checkout_tree(repo, (git_object*)commit, &checkout_opts) == 0;
+
+    git_commit_free(commit);
+
+    return success;
+}
+
 @end

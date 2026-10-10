@@ -320,4 +320,14 @@
  */
 - (BOOL)setIndexBlob:(nonnull NSString *)path oid:(nonnull NSString *)oidHex NS_SWIFT_NAME(setIndexBlob(_:oid:));
 
+/**
+ * Write only the named paths from a commit tree into the worktree and the
+ * index. Every other file stays. HEAD stays. An empty `paths` array is a
+ * no-op that returns YES.
+ *
+ * @param paths Repo-relative paths to check out
+ * @param refName The reference (or any revspec) to resolve to a commit
+ */
+- (BOOL)checkoutPaths:(nonnull NSArray<NSString *> *)paths atRef:(nonnull NSString *)refName NS_SWIFT_NAME(checkoutPaths(_:atRef:));
+
 @end

@@ -9,6 +9,7 @@
 
 #import <string>
 #import <map>
+#import <vector>
 
 #import "Repository.h"
 
@@ -366,6 +367,60 @@ int addReferenceToTargetCommit(const char *name, void *payload)
              :(id<ErrorReceiverProtocol> _Nullable)errorReceiver
 {
     RemoteHandler(remoteProgress, errorReceiver).fetch(remote->remote);
+}
+
+struct TreeBlobIdsWalkPayload
+{
+    NSMutableDictionary<NSString *, NSString *> *result;
+};
+
+static int collectBlobId(const char *root, const git_tree_entry *entry, void *payload)
+{
+    if (git_tree_entry_type(entry) != GIT_OBJECT_BLOB)
+        return 0;
+
+    TreeBlobIdsWalkPayload *p = (TreeBlobIdsWalkPayload*)payload;
+
+    char hex[GIT_OID_HEXSZ + 1];
+    git_oid_tostr(hex, sizeof(hex), git_tree_entry_id(entry));
+
+    NSString *rootStr = NSStringFromCString(root);
+    NSString *name = NSStringFromCString(git_tree_entry_name(entry));
+    NSString *path = (rootStr != nil && rootStr.length > 0) ? [rootStr stringByAppendingString:name] : name;
+
+    p->result[path] = NSStringFromCString(hex);
+
+    return 0;
+}
+
+- (nonnull NSDictionary<NSString *, NSString *> *)treeBlobIdsAtRef:(nonnull NSString *)refName
+{
+    NSMutableDictionary<NSString *, NSString *> *result = [[NSMutableDictionary alloc] init];
+
+    git_object *obj = NULL;
+    if (git_revparse_single(&obj, repo, [refName UTF8String]) != 0)
+        return result;
+
+    git_commit *commit = NULL;
+    if (git_object_peel((git_object**)&commit, obj, GIT_OBJECT_COMMIT) != 0) {
+        git_object_free(obj);
+        return result;
+    }
+    git_object_free(obj);
+
+    git_tree *tree = NULL;
+    if (git_commit_tree(&tree, commit) != 0) {
+        git_commit_free(commit);
+        return result;
+    }
+
+    TreeBlobIdsWalkPayload payload { result };
+    git_tree_walk(tree, GIT_TREEWALK_PRE, collectBlobId, &payload);
+
+    git_tree_free(tree);
+    git_commit_free(commit);
+
+    return result;
 }
 
 @end

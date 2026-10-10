@@ -301,4 +301,14 @@
              :(id<RemoteProgressProtocol> _Nonnull)remoteProgress
              :(id<ErrorReceiverProtocol> _Nullable)errorReceiver;
 
+/**
+ * List every blob in the tree of the commit `refName` resolves to, as a map
+ * from repo-relative path to lowercase hex blob id. A missing ref or an
+ * unreadable tree returns an empty dictionary. No checkout, no index write,
+ * no network.
+ *
+ * @param refName The reference (or any revspec) to resolve to a commit
+ */
+- (nonnull NSDictionary<NSString *, NSString *> *)treeBlobIdsAtRef:(nonnull NSString *)refName NS_SWIFT_NAME(treeBlobIds(atRef:));
+
 @end

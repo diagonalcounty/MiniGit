@@ -1,0 +1,89 @@
+# NOTICE
+
+This file records where this package comes from and which native libraries are in the prebuilt binary it downloads. It is a documentation note. It is not a legal opinion and it does not change how the package builds.
+
+## Origin
+
+This repository is a fork of [light-tech/MiniGit](https://github.com/light-tech/MiniGit). GitHub records that repository as the fork parent.
+
+Upstream states that MiniGit is under the same license as libgit2. The upstream README ends with:
+
+> # License
+>
+> Same as [libgit2](https://github.com/libgit2/libgit2).
+
+Source: <https://github.com/light-tech/MiniGit/blob/main/README.md> (section "License"). This fork's `README.md` keeps those lines and points at `LICENSE` and this file.
+
+`LICENSE` in this repository is a verbatim copy of libgit2's `COPYING` file at tag `v1.3.1`:
+
+<https://github.com/libgit2/libgit2/blob/v1.3.1/COPYING>
+
+That file contains the GPL-2.0 text, the linking exception, and the third-party notices that libgit2 bundled into `COPYING` for that tag (zlib, the Clar test framework, `deps/regex`, `deps/winhttp`, SHA-1 collision detection, wildmatch, and portions of older OpenSSL headers). Notices for other code that is actually compiled into the binary, but that this `COPYING` does not name, are listed below.
+
+## libgit2 version
+
+The package does not build libgit2 from source. `Package.swift` downloads a prebuilt xcframework:
+
+- URL: `https://github.com/light-tech/LibGit2-On-iOS/releases/download/v1.3.1/libgit2.xcframework.zip`
+- checksum: `332bfb255649f2295d5530e4abed4e81803acdc6abf18a266695fdb447ca3df2`
+
+That checksum matches the `libgit2.xcframework.zip` asset on the [LibGit2-On-iOS v1.3.1 release](https://github.com/light-tech/LibGit2-On-iOS/releases/tag/v1.3.1) (published 2022-07-02). The release notes say the asset updates libgit2 to v1.3.1 and OpenSSL to v3.0.4. The build script at that tag is [`build-libgit2-framework.sh`](https://github.com/light-tech/LibGit2-On-iOS/blob/v1.3.1/build-libgit2-framework.sh). It builds the dependencies below and merges every static library in the install prefix into one `libgit2.a` (`libtool -static -o libgit2.a lib/*.a`).
+
+The downloaded xcframework (all three slices: `ios-arm64`, `ios-arm64_x86_64-simulator`, `ios-arm64_x86_64-maccatalyst`) identifies libgit2 as 1.3.1:
+
+- `Headers/git2/version.h` defines `LIBGIT2_VERSION` as `"1.3.1"` and says the header is part of libgit2, distributed under the GNU GPL v2 with a Linking Exception.
+- The device archive contains the defined symbol `_git_libgit2_version` and the string `libgit2 1.3.1`.
+- A path string inside the archive points at `LibGit2-On-iOS/libgit2-1.3.1/`.
+
+## What is statically included in `libgit2.xcframework`
+
+Checked by reading headers in every slice and by listing object members and defined symbols in `libgit2.a` (device `ios-arm64`, plus each architecture of the two fat slices after thinning). Member counts differ slightly by architecture because OpenSSL builds a few arch-specific objects. The libraries below are present in every slice.
+
+| Library | Version identified in the binary | License |
+| --- | --- | --- |
+| libgit2 | 1.3.1 | GPL-2.0 with the linking exception, as stated in `git2/version.h` and in `LICENSE` |
+| OpenSSL (`libcrypto`, `libssl`, and the `libdefault`, `libcommon`, and `liblegacy` providers) | 3.0.4 (`OPENSSL_VERSION_TEXT` is `"OpenSSL 3.0.4 21 Jun 2022"`; symbol `_OpenSSL_version`) | Apache License 2.0. OpenSSL's `LICENSE.txt` at tag `openssl-3.0.4` is the Apache License 2.0: <https://github.com/openssl/openssl/blob/openssl-3.0.4/LICENSE.txt> |
+| libssh2 | 1.10.0 (`LIBSSH2_VERSION` in the shipped `libssh2.h`; symbol `_libssh2_version`) | BSD-3-Clause. The shipped `libssh2.h` contains that license. The project `COPYING` at tag `libssh2-1.10.0` is the same license: <https://github.com/libssh2/libssh2/blob/libssh2-1.10.0/COPYING> |
+| PCRE | 8.45, dated 2021-06-15 (`PCRE_MAJOR` / `PCRE_MINOR` / `PCRE_DATE` in the shipped `pcre.h`; 22 `pcre_*.c.o` members; symbol `_pcre_version`) | BSD. The shipped `pcre.h` carries the University of Cambridge BSD terms. The build script clones <https://github.com/light-tech/PCRE> into a directory named `pcre-8.45` with no commit pin. That repository's `LICENCE` says release 8 is under the BSD licence: <https://github.com/light-tech/PCRE/blob/main/LICENCE>. This is not libgit2's own `deps/pcre`, whose `pcre.h` at tag v1.3.1 says 8.44 (2020-02-12). |
+
+Code compiled in from libgit2's own tree, identified by object-file names in the archive:
+
+- **http-parser** (`http_parser.c.o`). Vendored at `deps/http-parser` in libgit2 1.3.1. Its `COPYING` is the MIT license (NGINX / Joyent): <https://github.com/libgit2/libgit2/blob/v1.3.1/deps/http-parser/COPYING>. libgit2's top-level `COPYING` does not mention http-parser, so that text is not inside `LICENSE`.
+- **xdiff** (`xdiffi.c.o`, `xemit.c.o`, `xhistogram.c.o`, `xmerge.c.o`, `xpatience.c.o`, `xprepare.c.o`, `xutils.c.o`). `src/xdiff/xdiff.h` at tag v1.3.1 says LibXDiff is free software under the GNU Lesser General Public License, version 2.1 or any later version: <https://github.com/libgit2/libgit2/blob/v1.3.1/src/xdiff/xdiff.h>. libgit2's top-level `COPYING` does not name xdiff. The LGPL text that `COPYING` does include is introduced there as the license of `deps/regex` and `deps/winhttp`, not of xdiff.
+- **ntlmclient** (header in libgit2 1.3.1 says `NTLM_CLIENT_VERSION` `"0.9.0"`). `deps/ntlmclient/ntlmclient.h` and `ntlm.c` say it is distributed under the MIT license and point at an included `LICENSE.txt`. That `LICENSE.txt` is not in the `deps/ntlmclient` directory at tag v1.3.1. Object `unicode_iconv.c.o` in the archive defines `_ntlm_unicode_*`, which matches `deps/ntlmclient/unicode_iconv.c`. `crypt_commoncrypto.c.o` matches `deps/ntlmclient/crypt_commoncrypto.c`. The full MIT text is not in libgit2's `COPYING` and is not in this vendored directory.
+- **SHA-1 collision detection** (`collisiondetect.c.o`, `ubc_check.c.o`) and **wildmatch** (`wildmatch.c.o`). Both are named in libgit2's `COPYING`, so their notices are in `LICENSE` (MIT and BSD, respectively).
+
+`LICENSE` also reproduces notices for these libgit2 source-tree dependencies. They do not show up as separate libraries in this xcframework:
+
+- Bundled zlib code (zlib license in `COPYING`). The archive has no zlib objects such as `inflate.o` / `deflate.o`. Compression symbols are undefined; see the linked libraries below.
+- Clar (ISC). The LibGit2-On-iOS script passes `-DBUILD_CLAR=NO`.
+- `deps/regex` (GNU LGPL, as stated in `COPYING`). The archive has `regexp.c.o`, which references `pcre_*` symbols, and does not contain the GNU regex sources.
+- `deps/winhttp` (GNU LGPL, as stated in `COPYING`). `winhttp.c.o` is present and, on the `ios-arm64` slice, defines no symbols beyond a local label.
+
+No object file in the archive was identified as GPL without a linking exception. xdiff is LGPL-2.1-or-later, which is a different license from the GPL-2.0 linking exception, and `COPYING` does not name it.
+
+## What is linked and not inside the xcframework
+
+On the `ios-arm64` archive, 220 symbols are undefined and not defined by any other member. Everything except the symbols below is a C library, pthread, or libSystem call (`malloc`, `open`, and so on).
+
+Named by this package:
+
+- **zlib** (`libz`). Undefined symbols: `_inflate`, `_inflateEnd`, `_inflateInit_`, `_inflateReset`, `_deflate`, `_deflateEnd`, `_deflateInit_`, `_deflateReset`, `_crc32`. They are referenced from `zstream.c.o`, `filebuf.c.o`, and `indexer.c.o`. `Package.swift` passes `.linkedLibrary("z")` on the MiniGit target. The README tells XGit-only users to add `libz.tbd`. No zlib copy is inside the xcframework. The package does not pin a zlib version; the linked library is the SDK's `libz`. The zlib project license is the zlib license: <https://www.zlib.net/zlib_license.html>. The same terms appear in `LICENSE` for the zlib sources libgit2 vendors, which this binary does not include.
+- **iconv** (`libiconv`). Undefined symbols: `_iconv`, `_iconv_open`, `_iconv_close`, from `unicode_iconv.c.o` (ntlmclient) and `path.c.o` (libgit2). `Package.swift` passes `.linkedLibrary("iconv")`. The README tells XGit-only users to add `libiconv.tbd`. No libiconv objects are in the xcframework. The package does not pin an SDK version. Apple's published libiconv distribution (Citrus / FreeBSD iconv, not GNU libiconv) labels the license BSD: <https://github.com/apple-oss-distributions/libiconv/blob/libiconv-107/libiconv.plist> (`OpenSourceLicense` = `BSD`) and <https://github.com/apple-oss-distributions/libiconv/blob/92f8c324566d03e08c6ad71eea9513c2751f21e4/libiconv.txt>.
+
+Referenced by undefined symbols, not named in `Package.swift`, and not bundled:
+
+- **Security.framework** (Secure Transport and Security): `_SSLClose`, `_SSLCopyPeerTrust`, `_SSLCreateContext`, `_SSLHandshake`, `_SSLRead`, `_SSLSetConnection`, `_SSLSetIOFuncs`, `_SSLSetPeerDomainName`, `_SSLSetProtocolVersionMax`, `_SSLSetProtocolVersionMin`, `_SSLSetSessionOption`, `_SSLWrite`, `_SecCertificateCopyData`, `_SecTrustEvaluate`, `_SecTrustGetCertificateAtIndex`.
+- **CommonCrypto**: `_CCCrypt`, `_CCHmacInit`, `_CCHmacUpdate`, `_CCHmacFinal`, `_CC_MD4`.
+- **CoreFoundation**: `_CFDataGetBytePtr`, `_CFDataGetLength`, `_CFRelease`.
+- **libSystem** (libc, libpthread, and the other C library symbols in the unresolved set).
+
+No license text for Security, CommonCrypto, CoreFoundation, or libSystem is shipped in this repository or in the xcframework. Those licenses are not identified here.
+
+## Flags
+
+- **GPL without a linking exception:** none identified in the xcframework.
+- **Different copyleft, not named in `COPYING`:** xdiff is LGPL-2.1 or later, from its own header. The linking-exception paragraph in `LICENSE` does not mention xdiff.
+- **License named, full text missing from the vendored tree:** ntlmclient's sources say MIT and refer to `LICENSE.txt`, which is not in libgit2 1.3.1 `deps/ntlmclient`.
+- **Version not pinned by this package:** system `libz` and `libiconv` (licenses above). The xcframework does not contain them.
+- **License unknown from this repository and the xcframework:** Security.framework, CommonCrypto, CoreFoundation, and libSystem.

@@ -80,3 +80,5 @@ However, to avoid usage of `goto` statements (to perform clean-up, deallocate ob
 # License
 
 Same as [libgit2](https://github.com/libgit2/libgit2).
+
+The libgit2 v1.3.1 license text, including the linking exception and the third-party notices in that file, is in [`LICENSE`](LICENSE). Where this fork comes from, and which native libraries the prebuilt xcframework includes or links, is in [`NOTICE`](NOTICE).

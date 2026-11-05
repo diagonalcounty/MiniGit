@@ -79,4 +79,10 @@ However, to avoid usage of `goto` statements (to perform clean-up, deallocate ob
 
 # License
 
-Same as [libgit2](https://github.com/libgit2/libgit2).
+Upstream [light-tech/MiniGit](https://github.com/light-tech/MiniGit) states: "Same as [libgit2](https://github.com/libgit2/libgit2)." This fork follows that statement. The full text is in [LICENSE](LICENSE): the GNU General Public License, version 2, with libgit2's linking exception, copied from [libgit2's COPYING](https://github.com/libgit2/libgit2/blob/main/COPYING).
+
+The linking exception in that file reads:
+
+> In addition to the permissions in the GNU General Public License, the authors give you unlimited permission to link the compiled version of this library into combinations with other programs, and to distribute those combinations without any restriction coming from the use of this file. (The General Public License restrictions do apply in other respects; for example, they cover modification of the file, and distribution when not linked into a combined executable.)
+
+Libraries this package bundles or links, including the prebuilt `libgit2.xcframework`, are listed with their licenses in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

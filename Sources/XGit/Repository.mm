@@ -10,6 +10,7 @@
 #import <string>
 #import <map>
 #import <vector>
+#include <string.h>
 
 #import "Repository.h"
 
@@ -39,6 +40,24 @@ struct OIDCompare
         return git_oid_cmp(&lhs, &rhs) < 0;
     }
 };
+
+struct DirtyPathAccumulator {
+    NSMutableArray<NSString *> *paths;
+};
+
+static int collectDirtyPath(const char *path, unsigned int status_flags, void *payload) {
+    unsigned int dirty = status_flags & ~((unsigned int)GIT_STATUS_IGNORED);
+    if (path == NULL || dirty == 0)
+        return 0;
+
+    DirtyPathAccumulator *accumulator = (DirtyPathAccumulator *)payload;
+    NSString *converted = NSStringFromBuffer(path, strlen(path));
+    if (converted.length == 0)
+        return 0;
+
+    [accumulator->paths addObject:converted];
+    return 0;
+}
 
 @implementation Repository
 {
@@ -196,6 +215,27 @@ int addReferenceToTargetCommit(const char *name, void *payload)
 - (void)status:(id<StatusProtocol> _Nonnull)gitStatusReceiver :(id<ErrorReceiverProtocol> _Nullable)errorReceiver
 {
     StatusHandler(gitStatusReceiver, errorReceiver).status(repo);
+}
+
+- (nonnull NSArray<NSString *> *)dirtyPaths
+{
+    NSMutableArray<NSString *> *paths = [[NSMutableArray alloc] init];
+    if (repo == NULL)
+        return paths;
+
+    git_status_options opts;
+    if (git_status_options_init(&opts, GIT_STATUS_OPTIONS_VERSION) != 0)
+        return paths;
+
+    opts.show = GIT_STATUS_SHOW_INDEX_AND_WORKDIR;
+    // Same coverage as status(): untracked files, not ignored files, and an
+    // untracked directory stays one entry (no RECURSE_UNTRACKED_DIRS).
+    opts.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED;
+
+    DirtyPathAccumulator accumulator { paths };
+    git_status_foreach_ext(repo, &opts, collectDirtyPath, &accumulator);
+
+    return paths;
 }
 
 - (void)stage:(nonnull NSString*)path :(id<ErrorReceiverProtocol> _Nullable)errorReceiver
@@ -533,7 +573,17 @@ static int collectBlobId(const char *root, const git_tree_entry *entry, void *pa
     const void *content = git_blob_rawcontent(blob);
     git_object_size_t size = git_blob_rawsize(blob);
 
-    NSString *text = NSStringFromBuffer((const char*)content, (size_t)size);
+    // Strict UTF-8: invalid bytes stay nil. NSStringFromBuffer is lossy and
+    // would hide that. Empty is valid UTF-8. A length that does not fit in
+    // size_t cannot be validated, so it is treated as unreadable.
+    NSString *text = nil;
+    if (size == 0) {
+        text = @"";
+    } else if (size > 0 && content != NULL) {
+        size_t length = (size_t)size;
+        if ((git_object_size_t)length == size && BufferIsValidUTF8((const char *)content, length))
+            text = StringFromBytes((const char *)content, length, NSUTF8StringEncoding);
+    }
 
     git_blob_free(blob);
 

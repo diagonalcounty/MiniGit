@@ -121,6 +121,14 @@
               :(id<ErrorReceiverProtocol> _Nullable)errorReceiver;
 
 /**
+ * Paths with staged or unstaged changes, including untracked files and
+ * excluding ignored files. An untracked directory is one path, matching
+ * `status`. Does not build diff hunks or decode file contents, and does
+ * not write the index or the worktree.
+ */
+- (nonnull NSArray<NSString *> *)dirtyPaths;
+
+/**
  * Stage a file to the index for the next commit
  *
  * @param path Path to the file to stage relative to the repo root

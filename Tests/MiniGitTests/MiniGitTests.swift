@@ -195,4 +195,56 @@ final class MiniGitTests: XCTestCase {
         XCTAssertNil(repo.blobUTF8Text("46b134b197f35e75e0784bedbf94a8dd124693b1"))
         XCTAssertEqual(try? Data(contentsOf: repo.location.appendingPathComponent("bin.dat")), Data([0xff, 0xfe]))
     }
+
+    // MARK: - #1848 status with invalid UTF-8
+
+    func testStatusReturnsPathForModifiedInvalidUTF8File() {
+        let repo = makeTempRepo()
+        repo.create()
+        repo.setSignature("Test", "test@example.com")
+
+        write("hello\n", to: "note.txt", in: repo)
+        write("same\n", to: "keep.txt", in: repo)
+        repo.stage("note.txt")
+        repo.stage("keep.txt")
+        repo.commit("initial")
+
+        // 0xFF is an illegal lead byte and 0xC3 is a truncated two-byte
+        // sequence. No NUL, so libgit2 still emits a text hunk.
+        writeBinary([0x68, 0x69, 0xFF, 0xC3], to: "note.txt", in: repo)
+
+        repo.updateStatus()
+        XCTAssertTrue(paths(in: repo.status.unstagedChanges).contains("note.txt"))
+        XCTAssertFalse(paths(in: repo.status.unstagedChanges).contains("keep.txt"))
+        XCTAssertFalse(paths(in: repo.status.stagedChanges).contains("note.txt"))
+        assertInvalidUTF8Hunk(in: repo.status.unstagedChanges, path: "note.txt", lossy: "hi\u{00FF}\u{00C3}")
+        XCTAssertEqual(repo.dirtyPaths(), ["note.txt"])
+
+        writeBinary([0x80], to: "new.bin", in: repo)
+        repo.updateStatus()
+        XCTAssertTrue(paths(in: repo.status.unstagedChanges).contains("note.txt"))
+        XCTAssertTrue(paths(in: repo.status.unstagedChanges).contains("new.bin"))
+        XCTAssertEqual(Set(repo.dirtyPaths()), Set(["note.txt", "new.bin"]))
+
+        repo.stage("note.txt")
+        repo.updateStatus()
+        XCTAssertTrue(paths(in: repo.status.stagedChanges).contains("note.txt"))
+        XCTAssertFalse(paths(in: repo.status.unstagedChanges).contains("note.txt"))
+        XCTAssertTrue(paths(in: repo.status.unstagedChanges).contains("new.bin"))
+        assertInvalidUTF8Hunk(in: repo.status.stagedChanges, path: "note.txt", lossy: "hi\u{00FF}\u{00C3}")
+        XCTAssertEqual(Set(repo.dirtyPaths()), Set(["note.txt", "new.bin"]))
+        XCTAssertFalse(repo.dirtyPaths().contains("keep.txt"))
+        XCTAssertEqual(
+            try! Data(contentsOf: repo.location.appendingPathComponent("note.txt")),
+            Data([0x68, 0x69, 0xFF, 0xC3]))
+    }
+
+    private func assertInvalidUTF8Hunk(in diff: Diff, path: String, lossy: String) {
+        let delta = diff.deltas.first { $0.theNewFile.path == path }
+        XCTAssertNotNil(delta)
+        XCTAssertTrue(delta?.hunks.contains { $0.header.contains("@@") } ?? false)
+        let texts = delta?.hunks.flatMap { $0.lines.map(\.text) } ?? []
+        XCTAssertTrue(texts.contains { $0 == "hello" || $0 == "hello\n" })
+        XCTAssertTrue(texts.contains { $0 == lossy || $0 == lossy + "\n" })
+    }
 }
